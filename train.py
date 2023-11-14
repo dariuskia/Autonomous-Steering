@@ -31,7 +31,6 @@ class SteeringTrainingArgs():
     results_dir: str
     exp_name: str
     epsilons: List[float]
-    with_tau: bool
 
 class SteeringTrainer():
     def __init__(self, args: SteeringTrainingArgs):
@@ -103,12 +102,15 @@ class SteeringTrainer():
     
     def evaluate(self):
         test_epoch_loss = 0
+        test_acc = [0 for _ in range(len(self.epsilons))]
         for imgs, labels in tqdm(self.steering_testloader):
             imgs = imgs.to(device)
             labels = labels.to(device)
             with torch.inference_mode():
                 Y = self.model(imgs).squeeze()
                 test_epoch_loss += self.loss_fn(Y, labels).sum()
+                for idx, eps in enumerate(self.epsilons):
+                    test_acc[idx] += ((Y - labels).abs() < eps).sum()
         test_acc = [acc / len(self.steering_testset) for acc in test_acc]
         avg_test_acc = torch.mean(torch.stack(test_acc), dtype=torch.float32).item()
         # test_loss = (test_epoch_loss/self.num_test_batches).item()
